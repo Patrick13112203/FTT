@@ -1,0 +1,62 @@
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///characters.db'
+db = SQLAlchemy(app)
+
+class Personagem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
+    link_imagem = db.Column(db.String(200), nullable=False)
+    programa = db.Column(db.String(100))
+    animador = db.Column(db.String(100))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'descricao': self.descricao,
+            'link_imagem': self.link_imagem,
+            'programa': self.programa,
+            'animador': self.animador
+        }
+
+@app.route('/characters/', methods=['POST'])
+def criar_personagem():
+    data = request.get_json()
+    personagem = Personagem(**data)
+    db.session.add(personagem)
+    db.session.commit()
+    return jsonify({'message': 'Personagem criado com sucesso', 'personagem': personagem.to_dict()}), 201
+
+@app.route('/characters/', methods=['GET'])
+def visualizar_personagens():
+    personagens = Personagem.query.all()
+    return jsonify({'personagens': [personagem.to_dict() for personagem in personagens]})
+
+@app.route('/characters/<int:id>/', methods=['GET'])
+def visualizar_personagem(id):
+    personagem = Personagem.query.get_or_404(id)
+    return jsonify(personagem.to_dict())
+
+@app.route('/characters/<int:id>/', methods=['PUT'])
+def atualizar_personagem(id):
+    data = request.get_json()
+    personagem = Personagem.query.get_or_404(id)
+    for key, value in data.items():
+        setattr(personagem, key, value)
+    db.session.commit()
+    return jsonify({'message': 'Personagem atualizado com sucesso', 'personagem': personagem.to_dict()})
+
+@app.route('/characters/<int:id>/', methods=['DELETE'])
+def deletar_personagem(id):
+    personagem = Personagem.query.get_or_404(id)
+    db.session.delete(personagem)
+    db.session.commit()
+    return jsonify({'message': 'Personagem deletado com sucesso'}), 204
+
+if __name__ == '__main__':
+    db.create_all()
+    app.run(debug=True)
